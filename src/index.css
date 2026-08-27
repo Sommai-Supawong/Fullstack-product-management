@@ -1,1 +1,9 @@
 @import "tailwindcss";
+@import url('https://googleapis.com');
+@plugin "daisyui" {
+   themes: light --default;
+ }
+
+@theme {
+  --font-kanit: "Kanit", "sans-serif";
+}
