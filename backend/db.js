@@ -28,6 +28,12 @@ const Product = sequelize.define("Product", {
         type: DataTypes.FLOAT,
         allowNull: false,
     },
+
+    quantity: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+    },
 });
 
 // เชื่อมต่อและสร้างตาราง
