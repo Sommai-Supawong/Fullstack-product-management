@@ -27,9 +27,13 @@ app.post("/products", async (req, res) => {
     try {
         const { name, price, quantity } = req.body;
 
+        const normalizedName = typeof name === "string" ? name.trim() : "";
+        const numericPrice = Number(price);
+        const numericQuantity = Number(quantity);
+
         // ตรวจสอบว่ากรอกข้อมูลครบหรือไม่
         if (
-            !name ||
+            !normalizedName ||
             price === undefined ||
             price === null ||
             quantity === undefined ||
@@ -41,30 +45,30 @@ app.post("/products", async (req, res) => {
         }
 
         // ตรวจสอบราคา
-        if (Number(price) < 0) {
+        if (!Number.isFinite(numericPrice) || numericPrice < 0) {
             return res.status(400).json({
                 message: "price must be greater than or equal to 0"
             });
         }
 
         // ตรวจสอบจำนวนสินค้า
-        if (Number(quantity) < 0) {
+        if (!Number.isFinite(numericQuantity) || numericQuantity < 0) {
             return res.status(400).json({
                 message: "quantity must be greater than or equal to 0"
             });
         }
 
         // quantity ควรเป็นจำนวนเต็ม
-        if (!Number.isInteger(Number(quantity))) {
+        if (!Number.isInteger(numericQuantity)) {
             return res.status(400).json({
                 message: "quantity must be an integer"
             });
         }
 
         const product = await Product.create({
-            name,
-            price: Number(price),
-            quantity: Number(quantity)
+            name: normalizedName,
+            price: numericPrice,
+            quantity: numericQuantity
         });
 
         return res.status(201).json(product);
@@ -134,6 +138,10 @@ app.put("/products/:id", async (req, res) => {
 
         const { name, price, quantity } = req.body;
 
+        const normalizedName = typeof name === "string" ? name.trim() : "";
+        const numericPrice = Number(price);
+        const numericQuantity = Number(quantity);
+
         // ต้องมีอย่างน้อย 1 field ที่ต้องการแก้
         if (
             name === undefined &&
@@ -145,15 +153,27 @@ app.put("/products/:id", async (req, res) => {
             });
         }
 
+        if (name !== undefined && !normalizedName) {
+            return res.status(400).json({
+                message: "name must not be empty"
+            });
+        }
+
         // ตรวจสอบราคา
-        if (price !== undefined && Number(price) < 0) {
+        if (
+            price !== undefined &&
+            (price === null || !Number.isFinite(numericPrice) || numericPrice < 0)
+        ) {
             return res.status(400).json({
                 message: "price must be greater than or equal to 0"
             });
         }
 
         // ตรวจสอบ quantity
-        if (quantity !== undefined && Number(quantity) < 0) {
+        if (
+            quantity !== undefined &&
+            (quantity === null || !Number.isFinite(numericQuantity) || numericQuantity < 0)
+        ) {
             return res.status(400).json({
                 message: "quantity must be greater than or equal to 0"
             });
@@ -161,7 +181,7 @@ app.put("/products/:id", async (req, res) => {
 
         if (
             quantity !== undefined &&
-            !Number.isInteger(Number(quantity))
+            !Number.isInteger(numericQuantity)
         ) {
             return res.status(400).json({
                 message: "quantity must be an integer"
@@ -170,15 +190,15 @@ app.put("/products/:id", async (req, res) => {
 
         await product.update({
             ...(name !== undefined && {
-                name
+                name: normalizedName
             }),
 
             ...(price !== undefined && {
-                price: Number(price)
+                price: numericPrice
             }),
 
             ...(quantity !== undefined && {
-                quantity: Number(quantity)
+                quantity: numericQuantity
             })
         });
 
