@@ -1,15 +1,24 @@
 import { Sequelize, DataTypes } from "sequelize";
-
+const dbName = process.env.PGDATABASE;
+const dbUsername = process.env.PGUSER;
+const dbPassword = process.env.PGPASSWORD;
+const dbURL = process.env.PGHOST;   
 // สร้างการเชื่อมต่อ PostgreSQL
 const sequelize = new Sequelize(
-    "product_db",
-    "dev_user",
-    "dev_password",
+    dbName,
+    dbUsername,
+    dbPassword,
     {
-        host: "localhost",
+        host: dbURL,
         port: 5433,
         dialect: "postgres",
         logging: false,
+        dialectOptions: {
+            ssl: {
+                require: true,
+                rejectUnauthorized: false, // ปิดการตรวจสอบใบรับรอง SSL
+            }
+        }
     }
 );
 
