@@ -1,42 +1,60 @@
+import "dotenv/config";
 import { Sequelize, DataTypes } from "sequelize";
+
 const dbName = process.env.PGDATABASE;
 const dbUsername = process.env.PGUSER;
 const dbPassword = process.env.PGPASSWORD;
-const dbURL = process.env.PGHOST_UNPOOLED;
-const PORT = process.env.PGPORT;
 
+// Vercel / Neon: ใช้ pooled connection ก่อน
+const dbHost =
+    process.env.PGHOST ||
+    process.env.PGHOST_UNPOOLED;
 
-// const databaseUrl = process.env.DATABASE_URL_UNPOOLED;
-// สร้างการเชื่อมต่อ PostgreSQL
+const dbPort = Number(process.env.PGPORT || 5432);
+
 const sequelize = new Sequelize(
     dbName,
     dbUsername,
     dbPassword,
     {
-        host: dbURL,
-        port: PORT,
+        host: dbHost,
+        port: dbPort,
         dialect: "postgres",
         logging: false,
+
         dialectOptions: {
             ssl: {
                 require: true,
-                rejectUnauthorized: false, // ปิดการตรวจสอบใบรับรอง SSL
-            }
-        }
+                rejectUnauthorized: false,
+            },
+        },
+
+        pool: {
+            max: 5,
+            min: 0,
+            acquire: 30000,
+            idle: 10000,
+        },
     }
 );
 
-// สร้าง Model Product
+
+// ==============================
+// Product Model
+// ==============================
+
 const Product = sequelize.define("Product", {
     id: {
         type: DataTypes.INTEGER,
         autoIncrement: true,
         primaryKey: true,
     },
+
     name: {
         type: DataTypes.STRING,
         allowNull: false,
     },
+
     price: {
         type: DataTypes.FLOAT,
         allowNull: false,
@@ -49,18 +67,32 @@ const Product = sequelize.define("Product", {
     },
 });
 
-// เชื่อมต่อและสร้างตารางตรับ
-const connectDB = async () => {
-    try {
-        await sequelize.authenticate();
-        console.log("PostgreSQL connected successfully");
 
-        await sequelize.sync({ alter: true });
-        console.log("Tables synchronized successfully");
-    } catch (error) {
-        console.error("Error connecting to the database:", error);
-        process.exit(1);
+// ==============================
+// Database Connection
+// ==============================
+
+let connectionPromise = null;
+
+const connectDB = async () => {
+    if (!connectionPromise) {
+        connectionPromise = sequelize
+            .authenticate()
+            .then(() => {
+                console.log("✅ PostgreSQL connected successfully");
+            })
+            .catch((error) => {
+                connectionPromise = null;
+                console.error("❌ PostgreSQL connection failed:", error);
+                throw error;
+            });
     }
+
+    return connectionPromise;
 };
 
-export { sequelize, Product, connectDB };
+export {
+    sequelize,
+    Product,
+    connectDB,
+};

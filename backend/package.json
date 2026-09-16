@@ -13,6 +13,7 @@
   "author": "Sommai",
   "license": "ISC",
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "pg": "^8.22.0",
