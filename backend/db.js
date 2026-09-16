@@ -3,52 +3,160 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const databaseUrl = process.env.DATABASE_URL_UNPOOLED;
-const remoteDatabase = Boolean(databaseUrl);
+/*
+|--------------------------------------------------------------------------
+| Database Connection
+|--------------------------------------------------------------------------
+|
+| Production (Render + Neon)
+|   DATABASE_URL_UNPOOLED=postgresql://...
+|
+| Local PostgreSQL (optional)
+|   PGDATABASE=product_db
+|   PGUSER=dev_user
+|   PGPASSWORD=dev_password
+|   PGHOST=127.0.0.1
+|   PGPORT=5432
+|
+*/
 
-const sequelize = remoteDatabase
-    ? new Sequelize(databaseUrl, {
-        dialect: "postgres",
-        logging: false,
-        dialectOptions: {
-            // Required by Neon and Render PostgreSQL.
-            ssl: { require: true, rejectUnauthorized: false },
-        },
-        pool: { max: 5, min: 0, idle: 10000 },
-    })
-    : new Sequelize(
-        process.env.PGDATABASE || "product_db",
-        process.env.PGUSER || "dev_user",
-        process.env.PGPASSWORD || "dev_password",
-        {
-            host: process.env.PGHOST || "127.0.0.1",
-            // PORT belongs to the web server on Render; never use it for PostgreSQL.
-            port: Number(process.env.DB_PORT || process.env.PGPORT || 5433),
-            dialect: "postgres",
-            logging: false,
-        }
-    );
+const databaseUrl =
+  process.env.DATABASE_URL_UNPOOLED ||
+  process.env.DATABASE_URL;
 
-const Product = sequelize.define("Product", {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    name: { type: DataTypes.STRING, allowNull: false },
-    price: { type: DataTypes.FLOAT, allowNull: false },
-    quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
-});
+let sequelize;
+
+if (databaseUrl) {
+  // ==========================================
+  // Production / Neon PostgreSQL
+  // ==========================================
+  sequelize = new Sequelize(databaseUrl, {
+    dialect: "postgres",
+
+    logging: false,
+
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false,
+      },
+    },
+
+    // Sequelize manages its own connection pool
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
+    },
+  });
+} else {
+  // ==========================================
+  // Local PostgreSQL
+  // ==========================================
+  sequelize = new Sequelize(
+    process.env.PGDATABASE || "product_db",
+    process.env.PGUSER || "dev_user",
+    process.env.PGPASSWORD || "dev_password",
+    {
+      host: process.env.PGHOST || "127.0.0.1",
+      port: Number(process.env.PGPORT || 5432),
+
+      dialect: "postgres",
+
+      logging: false,
+    }
+  );
+}
+
+/*
+|--------------------------------------------------------------------------
+| Product Model
+|--------------------------------------------------------------------------
+*/
+
+const Product = sequelize.define(
+  "Product",
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      validate: {
+        min: 0,
+      },
+    },
+
+    quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      validate: {
+        min: 0,
+      },
+    },
+  },
+  {
+    tableName: "products",
+
+    // Database จะมีแค่
+    // id, name, price, quantity
+    timestamps: false,
+  }
+);
+
+/*
+|--------------------------------------------------------------------------
+| Database Connection
+|--------------------------------------------------------------------------
+*/
 
 let connectionPromise = null;
+
 const connectDB = async () => {
-    if (!connectionPromise) {
-        connectionPromise = sequelize.authenticate()
-            .then(() => sequelize.sync())
-            .then(() => console.log("PostgreSQL connected and schema initialized"))
-            .catch((error) => {
-                connectionPromise = null;
-                console.error("PostgreSQL connection failed:", error.message);
-                throw error;
-            });
-    }
+  if (connectionPromise) {
     return connectionPromise;
+  }
+
+  connectionPromise = (async () => {
+    try {
+      await sequelize.authenticate();
+
+      console.log("✅ PostgreSQL connection successful");
+
+      // สร้าง table ถ้ายังไม่มี
+      await sequelize.sync();
+
+      console.log("✅ Database schema initialized");
+
+      return sequelize;
+    } catch (error) {
+      connectionPromise = null;
+
+      console.error(
+        "❌ PostgreSQL connection failed:",
+        error.message
+      );
+
+      throw error;
+    }
+  })();
+
+  return connectionPromise;
 };
 
-export { sequelize, Product, connectDB };
+export {
+  sequelize,
+  Product,
+  connectDB,
+};
