@@ -49,7 +49,7 @@ const Product = sequelize.define("Product", {
     },
 });
 
-// เชื่อมต่อและสร้างตาราง
+// เชื่อมต่อและสร้างตารางตรับ
 const connectDB = async () => {
     try {
         await sequelize.authenticate();
