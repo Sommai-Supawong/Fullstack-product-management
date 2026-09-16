@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
+const databaseUrl = process.env.DATABASE_URL_UNPOOLED;
 const remoteDatabase = Boolean(databaseUrl);
 
 const sequelize = remoteDatabase
