@@ -240,6 +240,11 @@ app.delete("/products/:id", async (req, res) => {
 
 
 // ดักฟัง request
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on port ${PORT}`);
-});
+// Render runs the HTTP server. Vercel can import the Express app as a handler.
+if (!process.env.VERCEL) {
+    app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+export default app;

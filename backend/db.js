@@ -4,16 +4,30 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const databaseUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED;
-const sequelize = databaseUrl
+const remoteDatabase = Boolean(databaseUrl);
+
+const sequelize = remoteDatabase
     ? new Sequelize(databaseUrl, {
-        dialect: "postgres", logging: false,
-        dialectOptions: { ssl: { require: true, rejectUnauthorized: false } },
+        dialect: "postgres",
+        logging: false,
+        dialectOptions: {
+            // Required by Neon and Render PostgreSQL.
+            ssl: { require: true, rejectUnauthorized: false },
+        },
         pool: { max: 5, min: 0, idle: 10000 },
     })
-    : new Sequelize(process.env.PGDATABASE || "product_db", process.env.PGUSER || "dev_user", process.env.PGPASSWORD || "dev_password", {
-        host: process.env.PGHOST || "127.0.0.1",
-        port: Number(process.env.DB_PORT || 5433), dialect: "postgres", logging: false,
-    });
+    : new Sequelize(
+        process.env.PGDATABASE || "product_db",
+        process.env.PGUSER || "dev_user",
+        process.env.PGPASSWORD || "dev_password",
+        {
+            host: process.env.PGHOST || "127.0.0.1",
+            // PORT belongs to the web server on Render; never use it for PostgreSQL.
+            port: Number(process.env.DB_PORT || process.env.PGPORT || 5433),
+            dialect: "postgres",
+            logging: false,
+        }
+    );
 
 const Product = sequelize.define("Product", {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
