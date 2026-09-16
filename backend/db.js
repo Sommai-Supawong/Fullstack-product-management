@@ -40,7 +40,8 @@ let connectionPromise = null;
 const connectDB = async () => {
     if (!connectionPromise) {
         connectionPromise = sequelize.authenticate()
-            .then(() => console.log("PostgreSQL connected successfully"))
+            .then(() => sequelize.sync())
+            .then(() => console.log("PostgreSQL connected and schema initialized"))
             .catch((error) => {
                 connectionPromise = null;
                 console.error("PostgreSQL connection failed:", error.message);

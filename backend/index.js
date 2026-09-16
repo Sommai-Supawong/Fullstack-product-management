@@ -3,22 +3,64 @@ import { connectDB, Product } from "./db.js";
 import cors from "cors";
 
 const app = express();
-const allowedOrigins = (process.env.FRONTEND_URL || "")
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
     .split(",").map((origin) => origin.trim()).filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : true }));
+if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://localhost:5173", "http://127.0.0.1:5173");
+}
+
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
+
+    return allowedOrigins.some((allowedOrigin) => {
+        if (!allowedOrigin.includes("*")) return origin === allowedOrigin;
+
+        const escaped = allowedOrigin
+            .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+            .replaceAll("*", ".*");
+        return new RegExp(`^${escaped}$`).test(origin);
+    });
+};
+
+app.use(cors({
+    origin(origin, callback) {
+        callback(null, isAllowedOrigin(origin));
+    },
+}));
 
 const PORT = Number(process.env.PORT || 5000);
 
 // Middleware สำหรับอ่าน JSON จาก request body
 app.use(express.json());
 
+app.use((req, res, next) => {
+    const startedAt = Date.now();
+    res.on("finish", () => {
+        console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - startedAt}ms`);
+    });
+    next();
+});
+
 // เชื่อมต่อฐานข้อมูล
-connectDB();
+if (process.env.VERCEL) {
+    app.use(async (req, res, next) => {
+        try {
+            await connectDB();
+            next();
+        } catch {
+            res.status(503).json({ message: "Database is unavailable" });
+        }
+    });
+}
 
 app.get("/", (req, res) => {
     return res.status(200).send({
         message: "Welcome to the Product API"
     });
+});
+
+app.get("/health", (req, res) => {
+    return res.status(200).json({ status: "ok" });
 });
 
 
@@ -241,10 +283,20 @@ app.delete("/products/:id", async (req, res) => {
 
 // ดักฟัง request
 // Render runs the HTTP server. Vercel can import the Express app as a handler.
+async function startServer() {
+    try {
+        await connectDB();
+        app.listen(PORT, "0.0.0.0", () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("Server startup failed:", error.message);
+        process.exitCode = 1;
+    }
+}
+
 if (!process.env.VERCEL) {
-    app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on port ${PORT}`);
-    });
+    startServer();
 }
 
 export default app;

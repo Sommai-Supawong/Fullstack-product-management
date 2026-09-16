@@ -1,4 +1,5 @@
-export const API_URL = import.meta.env.VITE_API_URL + '/products';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+export const API_URL = `${API_BASE_URL}/products`;
 export const formatPrice = value => new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(Number(value));
 export function stockStatus(quantity) {
   return Number(quantity) === 0 ? { label: 'Out of stock', tone: 'error' } : Number(quantity) <= 5 ? { label: 'Low stock', tone: 'warning' } : { label: 'In stock', tone: 'success' };
